@@ -7,15 +7,19 @@ import requests
 from dotenv import load_dotenv
 import time
 
+from synapse_admin import User, Room
+
 load_dotenv()
 
 # Define your access token, target user ID, server domain, server URL
 access_token = os.getenv('ACCESS_TOKEN')
 server_url = os.getenv('SERVER_URL')
-api_url = f"{server_url}/_synapse/admin/v1/send_server_notice"
-msg = os.getenv('MSG')
+
+conn = (server_url.replace('https://', ''), 443, access_token, 'https://') 
+
 
 def send_notice(target_user, msg):
+    api_url = f"{server_url}/_synapse/admin/v1/send_server_notice"
     
     # Construct the request payload
     payload = {
@@ -45,7 +49,35 @@ def send_notice(target_user, msg):
     except Exception as e:
         print(e)
 
+def add_user_to_room(target_user, room):
+    api_url = f"{server_url}/_synapse/admin/v1/join/{room}"
+    
+    # Construct the request payload
+    payload = {
+        "user_id": target_user,
+    }
+
+    # Construct headers
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+
+    try:
+        # Send the POST request
+        response = requests.post(api_url, json=payload, headers=headers)
+
+        # Check if the request was successful
+        if response.status_code == 200:
+            print(f"Successfully added {target_user} to {room}")
+        else:
+            print(f"Failed to send server notice to {target_user}. Status code: {response.status_code}")
+            print("Response content:", response.content)
+    except Exception as e:
+        print(e)
+
 def send_beta_invitation():
+    msg = os.getenv('MSG')
     server_domain = server_url.replace('https://', '')
     users = [i.strip() for i in open('beta_users.csv').readlines()][40:]
     users = ['@'+i.replace('@', '-')[:-8]+f':{server_domain}' for i in users]
@@ -54,5 +86,19 @@ def send_beta_invitation():
         send_notice(u, msg)
         time.sleep(1)
 
+def invite_everyone_to_a_room(room_id):
+    user = User(*conn)
+    all_members = user.lists(limit=10000)
+    # convert all_members list to dict so its easy to search a user by his id
+    all_members = {u['name'] :  u for u in all_members}
+    room = Room(*conn)
+    existing_members = room.list_members(room_id)
+    non_members = list(set(all_members.keys()) - set(existing_members))
+    print(len(non_members), 'have yet not joined social media wing!')
+    non_members.insert(0, '@talhaasghar220-g:chat.the-revivalists.org')
+    for u in non_members:
+        add_user_to_room(u, room_id)
+        
+
 if __name__=="__main__":
-    send_beta_invitation()
+    invite_everyone_to_a_room(os.getenv('ROOM_ID'))
