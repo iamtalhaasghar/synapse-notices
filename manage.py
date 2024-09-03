@@ -10,6 +10,7 @@ from redis import Redis
 import sys
 from synapse_admin import User, Room
 import random
+from datetime import timedelta
 
 load_dotenv()
 
@@ -107,8 +108,123 @@ def get_list_of_all_members():
     # convert all_members list to dict so its easy to search a user by his id
     all_members = {u['name'] :  u for u in all_members}
     return all_members
+
+def growth_projection():
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from datetime import datetime
+    from collections import Counter
+
+    members = get_list_of_all_members()
+    dates = list()
+    for k,v in members.items():
+        ts = datetime.fromtimestamp(v['creation_ts']/1000)
+        dates.append(ts.strftime('%Y-%m-%d'))
+
+    # Count occurrences of each date
+    date_counts = Counter(dates)
+
+
+
+    # Convert to a DataFrame for easier plotting
+    df = pd.DataFrame(date_counts.items(), columns=['Date', 'Count'])
+    df['Date'] = pd.to_datetime(df['Date'])
+    df = df.sort_values('Date')
+
+
+    # Print header
+    print("Date Counts Summary:\n")
+
+    # Pretty print date counts
+    for index, row in df.iterrows():
+        date_str = row['Date'].strftime('%Y-%m-%d')  # Format date as YYYY-MM-DD
+        count = row['Count']
+        print(f"Date: {date_str} | Count: {count}")
+
+    # Get today's date
+    today = datetime.now()
+
+    # Define the date range (last 10 days)
+    ten_days_ago = today - timedelta(days=30)
+
+    # Filter DataFrame for the last 10 days
+    recent_df = df[df['Date'] >= ten_days_ago]
+
+    # Count the number of users in the last 10 days
+    recent_count = recent_df['Count'].sum()
+    print(f"Number of users in the last 30  days: {recent_count}")
+
+    # Define a specific start date
+    specific_start_date = datetime(2024, 8, 26)  # Example start date
+
+    # Filter DataFrame from a specific date onwards
+    specific_df = df[df['Date'] >= specific_start_date]
+
+    # Count the number of users from a specific date onwards
+    specific_count = specific_df['Count'].sum()
+    print(f"Number of users from {specific_start_date.strftime('%Y-%m-%d')} onwards: {specific_count}")
+
+
+
+    # Calculate growth between consecutive dates
+    df['Growth'] = df['Count'].diff().fillna(0)  # Calculate the difference, filling NaN with 0 for the first row
+
+    # Define significant growth threshold (example: growth > 1)
+    threshold = 10
+    # Define threshold for displaying dates
+    count_threshold = 50
+
+    # Identify significant growth dates
+    highlight_df = df[abs(df['Count']) > threshold]
+    # Plot the results as a line graph
+    plt.figure(figsize=(12, 6))
+    plt.plot(df['Date'], df['Count'], marker='o', linestyle='-', color='b', linewidth=1, markersize=2, label='Members Acquired')
+    plt.scatter(highlight_df['Date'], highlight_df['Count'], color='r', zorder=5, label='Significant Growth', s=20, edgecolor='k')
+
+    # Annotate significant growth points with dates
+    for _, row in highlight_df.iterrows():
+        date = row['Date']
+        count = row['Count']
+        if count > count_threshold:
+            plt.annotate(f"{date.strftime('%Y-%m-%d')}",
+                         (date, count),
+                         textcoords="offset points",
+                         xytext=(0,20),
+                         ha='center',
+                         fontsize=9,
+                         color='red')
+        
+        plt.annotate(f"{count}",
+                     (date, count),
+                     textcoords="offset points",
+                     xytext=(0,10),
+                     ha='center',
+                     fontsize=9,
+                     color='red')
+
+    total_members_count = df['Count'].sum()
+    # Add total members count to the plot
+    plt.text(df['Date'].max(), df['Count'].max(), f"Total Members: {total_members_count}",
+         horizontalalignment='right', verticalalignment='top',
+         fontsize=12, color='black', bbox=dict(facecolor='white', alpha=0.7, edgecolor='black'))
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    plt.figtext(0.99, 0.01, f"Generated on: {timestamp}", horizontalalignment='right', verticalalignment='bottom', fontsize=10, color='gray')
+
+    plt.xlabel('Date', fontsize=12)
+    plt.ylabel('Number of Members', fontsize=12)
+    plt.title('Number of Members registered per Date with Significant Growth Highlighted', fontsize=14)
+    plt.xticks(rotation=45, ha='right')  # Rotate labels and align to the right
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+
+
+    
+
 if __name__=="__main__":
     #invite_everyone_to_a_room(os.getenv('ROOM_ID'))
-    members = list(get_list_of_all_members().keys())
-    
+
+    #growth_projection()
 
