@@ -203,6 +203,7 @@ def growth_projection():
                      color='red')
 
     total_members_count = df['Count'].sum()
+    print(total_members_count)
     # Add total members count to the plot
     plt.text(df['Date'].max(), df['Count'].max(), f"Total Members: {total_members_count}",
          horizontalalignment='right', verticalalignment='top',
@@ -220,11 +221,30 @@ def growth_projection():
     plt.show()
 
 
+def read_rooms_list():
+    '''
+    A function which reads in the list of rooms csv exported through synapse admin panel.
+    '''
+    import csv
 
-    
+    # Read CSV file into a list of dictionaries
+    with open('rooms.csv', mode='r') as file:
+        csv_reader = csv.DictReader(file)
+        data = [row for row in csv_reader]
+
+    return data
+
+def add_someone_to_sm_group(user):
+    rooms = read_rooms_list()
+    # Display the list of dictionaries
+    for row in rooms:
+        if row['name'].startswith('SM'):
+            print(row['name'])
+            add_user_to_room(user, row['room_id'])
+
+
 
 if __name__=="__main__":
     #invite_everyone_to_a_room(os.getenv('ROOM_ID'))
-
-    #growth_projection()
-
+    growth_projection()
+    #add_someone_to_sm_group(sys.argv[1])
