@@ -5,3 +5,6 @@ Beta users of our App on Google Play Store (Responses) - Form responses 1.csv
 notice.sh
 notice.sh
 users.sh
+.json
+client_status.json
+rooms.csv

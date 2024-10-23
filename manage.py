@@ -2,7 +2,7 @@
 # 29-Apr-2024
 # github.com/iamtalhaasghar
 
-import os
+import os, json, time
 import requests
 from dotenv import load_dotenv
 import time
@@ -90,17 +90,18 @@ def send_beta_invitation():
         send_notice(u, msg)
         time.sleep(1)
 
-def invite_everyone_to_a_room(room_id):
+def invite_everyone_to_room(rooms):
     user = User(*conn)
     all_members = user.lists(limit=10000)
     # convert all_members list to dict so its easy to search a user by his id
     all_members = {u['name'] :  u for u in all_members}
     room = Room(*conn)
-    existing_members = room.list_members(room_id)
-    non_members = list(set(all_members.keys()) - set(existing_members))
-    print(len(non_members), 'have yet not joined this room.')
-    for u in non_members:
-        add_user_to_room(u, room_id)
+    for r in rooms:
+        existing_members = room.list_members(r)
+        non_members = list(set(all_members.keys()) - set(existing_members))
+        print(len(non_members), 'have yet not joined this room.')
+        for u in non_members:
+            add_user_to_room(u, r)
         
 def get_list_of_all_members():
     user = User(*conn)
@@ -172,7 +173,7 @@ def growth_projection():
     # Define significant growth threshold (example: growth > 1)
     threshold = 10
     # Define threshold for displaying dates
-    count_threshold = 50
+    count_threshold = 20
 
     # Identify significant growth dates
     highlight_df = df[abs(df['Count']) > threshold]
@@ -243,8 +244,64 @@ def add_someone_to_sm_group(user):
             add_user_to_room(user, row['room_id'])
 
 
+def is_user_using_updated_client(user_id):
+    api_url = f"{server_url}/_synapse/admin/v1/whois/{user_id}"
+    
+    # Construct headers
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
 
+    try:
+        # Send the POST request
+        response = requests.get(api_url, headers=headers)
+
+        # Check if the request was successful
+        if response.status_code == 200:
+            connections = response.json()['devices']['']['sessions'][0]['connections']
+            for c in connections:
+                if 'The Revivalists/10.6.5' in c['user_agent']:
+                    return True
+            return False
+        else:
+            print("Response content:", response.content)
+
+    except Exception as e:
+        print(e)
+
+def send_msg_to_update_client():
+    user = User(*conn)
+    all_members = user.lists(limit=10000)
+    # convert all_members list to dict so its easy to search a user by his id
+    all_members = {u['name'] :  u for u in all_members}
+    total = len(all_members.keys())
+    status = {}
+    t0 = time.time()
+    updated = 0
+    for i,u in enumerate(all_members):
+        s = is_user_using_updated_client(u)
+        assert s is True or s is False
+        if s:
+            updated += 1
+        status[u] = s
+        s = (i+1)/ (time.time()-t0)
+        print(total-i, ((total-i)*s)/60, updated )
+
+    with open('client_status.json', 'w') as f:
+        f.write(json.dumps(status))
 if __name__=="__main__":
+    pass
     #invite_everyone_to_a_room(os.getenv('ROOM_ID'))
-    growth_projection()
+    #growth_projection()
+    #invite_everyone_to_room(rooms)
     #add_someone_to_sm_group(sys.argv[1])
+
+    #send_msg_to_update_client()
+
+    #members=get_list_of_all_members()
+    #import json
+    #s = json.dumps(members)
+    #with open('members.json', 'w') as f:
+    #    f.write(s)
+
