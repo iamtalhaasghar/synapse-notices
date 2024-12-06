@@ -8,3 +8,4 @@ users.sh
 .json
 client_status.json
 rooms.csv
+members.json

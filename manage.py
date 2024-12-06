@@ -290,9 +290,24 @@ def send_msg_to_update_client():
 
     with open('client_status.json', 'w') as f:
         f.write(json.dumps(status))
+
+def send_session_msg():
+    user = User(*conn)
+    all_members = user.lists(limit=10000)
+    # convert all_members list to dict so its easy to search a user by his id
+    all_members = {u['name'] :  u for u in all_members}
+    total = len(all_members.keys())
+    t0 = time.time()
+    updated = 0
+    msg = open('msg.txt').read()
+    for i,u in enumerate(all_members):
+        s = (i+1)/ (time.time()-t0)
+        print(total-i, ((total-i)*s)/60, updated)
+        send_notice(u, msg)
+
+
 if __name__=="__main__":
-    pass
-    #invite_everyone_to_a_room(os.getenv('ROOM_ID'))
+    send_session_msg()
     #growth_projection()
     #invite_everyone_to_room(rooms)
     #add_someone_to_sm_group(sys.argv[1])
